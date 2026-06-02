@@ -55,7 +55,15 @@ class SouvenirController extends Controller
         // Gestion upload photo
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             $path = $request->file('photo')->store('souvenirs', 'public');
-            $url_photo = Storage::url($path);
+            $url_photo = '/files/' . $path;
+
+            // Copier le fichier vers public/storage aussi
+            $sourceFile = storage_path('app/public/' . $path);
+            $destDir = public_path('storage/souvenirs');
+            if (!is_dir($destDir)) {
+                mkdir($destDir, 0755, true);
+            }
+            copy($sourceFile, $destDir . '/' . basename($path));
         }
 
         Souvenir::create([
@@ -103,11 +111,24 @@ class SouvenirController extends Controller
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             // Supprimer l'ancienne photo si elle existe
             if ($souvenir->url_photo_souv) {
-                $oldPath = str_replace('/storage/', '', $souvenir->url_photo_souv);
+                $oldPath = str_replace('/files/', '', $souvenir->url_photo_souv);
                 Storage::disk('public')->delete($oldPath);
+                // Aussi supprimer du public/storage
+                $oldFile = public_path('storage/' . $oldPath);
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
             }
             $path = $request->file('photo')->store('souvenirs', 'public');
-            $validated['url_photo_souv'] = Storage::url($path);
+            $validated['url_photo_souv'] = '/files/' . $path;
+
+            // Copier le fichier vers public/storage aussi
+            $sourceFile = storage_path('app/public/' . $path);
+            $destDir = public_path('storage/souvenirs');
+            if (!is_dir($destDir)) {
+                mkdir($destDir, 0755, true);
+            }
+            copy($sourceFile, $destDir . '/' . basename($path));
         }
 
         unset($validated['photo']);
@@ -127,8 +148,13 @@ class SouvenirController extends Controller
         $this->authorizeAccess($souvenir);
 
         if ($souvenir->url_photo_souv) {
-            $oldPath = str_replace('/storage/', '', $souvenir->url_photo_souv);
+            $oldPath = str_replace('/files/', '', $souvenir->url_photo_souv);
             Storage::disk('public')->delete($oldPath);
+            // Aussi supprimer du public/storage
+            $oldFile = public_path('storage/' . $oldPath);
+            if (file_exists($oldFile)) {
+                unlink($oldFile);
+            }
         }
 
         $souvenir->delete();
