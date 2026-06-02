@@ -15,9 +15,23 @@ use App\Http\Controllers\web\VisiteurController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpFoundation\File\Stream;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
+
+//Rendre les fichiers de stockage accessible publiquement
+Route::get('/files/{path}', function ($path) {
+    $fullPath = public_path('storage') . '/' . $path;
+    
+    if (!is_file($fullPath)) {
+        return abort(404);
+    }
+    
+    return response()->file($fullPath);
+})->where('path', '.*')->name('files.serve');
+
 
 //template alternatifs
-
 Route::get('/template1', function () {
     return view('welcome')->with('template', 'template1');
 });
