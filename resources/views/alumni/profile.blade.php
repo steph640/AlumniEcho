@@ -9,6 +9,20 @@
             <p class="mb-0 opacity-75 small">Gérez vos informations personnelles</p>
         </div>
 
+        @if($errors->any())
+        <div class="alert alert-danger py-2 small mb-3">
+            @foreach($errors->all() as $error)
+            <div><i class="bi bi-exclamation-circle me-1"></i>{{ $error }}</div>
+            @endforeach
+        </div>
+        @endif
+
+        @if(session('success'))
+        <div class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle me-1"></i>{{ session('success') }}
+        </div>
+        @endif
+
         <div class="card p-4">
             <form action="{{ route('alumni.profile.update') }}" method="POST">
                 @csrf @method('PUT')
@@ -69,6 +83,11 @@
                             <span class="text-muted fw-normal small">(laisser vide pour ne pas changer)</span>
                         </label>
                         <input type="password" class="form-control" name="password_user"
+                               minlength="6" placeholder="••••••">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Confirmer le mot de passe</label>
+                        <input type="password" class="form-control" name="password_user_confirmation"
                                minlength="6" placeholder="••••••">
                     </div>
                 </div>
