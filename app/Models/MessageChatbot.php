@@ -16,7 +16,10 @@ class MessageChatbot extends Model
     protected $fillable = [
         'code_user',
         'question_chatbot',
-        'reponse_chatbot'
+        'reponse_chatbot',
+        'response_type',
+        'is_helpful',
+        'user_feedback'
     ];
 
     // Relations
