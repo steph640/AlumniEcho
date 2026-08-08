@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'enabled' => env('GEMINI_ENABLED', false),
+        'key' => env('GEMINI_API_KEY'),
+        'endpoint' => env('GEMINI_ENDPOINT'),
+        'model' => env('GEMINI_MODEL', 'gemini-1.0'),
+        'type' => env('GEMINI_TYPE', 'google'),
+    ],
+
 ];
