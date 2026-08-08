@@ -17,7 +17,7 @@ class UtilisateurSeeder extends Seeder
         $promotions = Promotion::all();
         $firstPromo = $promotions->first();
         $firstFil = $firstPromo ? $firstPromo->code_fil : null;
-        
+
         // Create test users with known credentials
         if ($firstPromo) {
             // Admin user
@@ -27,14 +27,14 @@ class UtilisateurSeeder extends Seeder
                 'password_user' => \Illuminate\Support\Facades\Hash::make('admin123'),
                 'nom_user' => 'Administrator',
                 'prenom_user' => 'Admin',
-                'tel_user' => '0000000000',
+                'tel_user' => '0123456789',
                 'sexe_user' => 'M',
                 'role_user' => 'admin',
                 'etat_user' => 'actif',
                 'code_promo' => $firstPromo->code_promo,
                 'code_fil' => $firstFil,
             ]);
-            
+
             // Alumni user
             Utilisateur::create([
                 'code_user' => 'USER' . strtoupper(substr(uniqid(), -6)),
@@ -49,7 +49,7 @@ class UtilisateurSeeder extends Seeder
                 'code_promo' => $firstPromo->code_promo,
                 'code_fil' => $firstFil,
             ]);
-            
+
             // Visiteur user
             Utilisateur::create([
                 'code_user' => 'USER' . strtoupper(substr(uniqid(), -6)),
