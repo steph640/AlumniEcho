@@ -147,5 +147,63 @@
         </footer>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            const chatMessages6 = document.getElementById('chatbot-messages');
+            const chatInput6 = document.getElementById('chat-input');
+            const chatSend6 = document.getElementById('chat-send');
+
+            function appendChatBubble6(text, side = 'bot') {
+                const wrapper = document.createElement('div');
+                wrapper.className = `text-${side === 'user' ? 'end' : 'start'} mb-2`;
+                wrapper.innerHTML = `<div class="d-inline-block bg-${side === 'user' ? 'primary text-white' : 'light text-dark'} p-2 rounded">${text}</div>`;
+                chatMessages6?.appendChild(wrapper);
+                if (chatMessages6) chatMessages6.scrollTop = chatMessages6.scrollHeight;
+            }
+
+            function setLoading6(loading) {
+                let loadingEl = document.getElementById('chat-loading');
+                if (loading && !loadingEl) {
+                    loadingEl = document.createElement('div');
+                    loadingEl.id = 'chat-loading';
+                    loadingEl.className = 'text-start mb-2';
+                    loadingEl.innerHTML = '<div class="d-inline-block bg-light text-dark p-2 rounded">En cours de réponse...</div>';
+                    chatMessages6?.appendChild(loadingEl);
+                    if (chatMessages6) chatMessages6.scrollTop = chatMessages6.scrollHeight;
+                } else if (!loading && loadingEl) {
+                    loadingEl.remove();
+                }
+            }
+
+            async function sendSidebarMessage6() {
+                const text = chatInput6?.value.trim();
+                if (!text) return;
+
+                appendChatBubble6(text, 'user');
+                if (chatInput6) chatInput6.value = '';
+                setLoading6(true);
+
+                try {
+                    const response = await fetch('/api/chatbot/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        },
+                        body: JSON.stringify({ question: text }),
+                    });
+
+                    const data = await response.json();
+                    appendChatBubble6(data.reponse || data.error || 'Erreur lors de la requête.', 'bot');
+                } catch (error) {
+                    appendChatBubble6('Erreur de communication avec le serveur.', 'bot');
+                } finally {
+                    setLoading6(false);
+                }
+            }
+
+            chatSend6?.addEventListener('click', sendSidebarMessage6);
+            chatInput6?.addEventListener('keypress', e => { if (e.key === 'Enter') sendSidebarMessage6(); });
+        </script>
     </body>
 </html>

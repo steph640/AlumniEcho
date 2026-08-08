@@ -109,13 +109,51 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.getElementById('chat-send')?.addEventListener('click', function(){
+document.getElementById('chat-send')?.addEventListener('click', async function(){
     const input = document.getElementById('chat-input');
-    const v = input.value.trim(); if(!v) return;
+    const question = input.value.trim();
+    if(!question) return;
+
     const c = document.getElementById('chatbot-messages');
-    const u = document.createElement('div'); u.className='text-end mb-2'; u.innerHTML='<div class="d-inline-block bg-primary text-white p-2 rounded">'+v+'</div>';
-    c.appendChild(u); input.value=''; c.scrollTop=c.scrollHeight;
-    setTimeout(()=>{ const b=document.createElement('div'); b.className='text-start mb-2'; b.innerHTML='<div class="d-inline-block bg-light text-dark p-2 rounded">Réponse automatique.</div>'; c.appendChild(b); c.scrollTop=c.scrollHeight; },700);
+    const userMessage = document.createElement('div');
+    userMessage.className = 'text-end mb-2';
+    userMessage.innerHTML = '<div class="d-inline-block bg-primary text-white p-2 rounded">'+question+'</div>';
+    c.appendChild(userMessage);
+    input.value = '';
+    c.scrollTop = c.scrollHeight;
+
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'text-start mb-2';
+    loadingMessage.id = 'chat-loading';
+    loadingMessage.innerHTML = '<div class="d-inline-block bg-light text-dark p-2 rounded"><i class="bi bi-arrow-repeat spin"></i> En cours de réponse...</div>';
+    c.appendChild(loadingMessage);
+    c.scrollTop = c.scrollHeight;
+
+    try {
+        const response = await fetch('/api/chatbot/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ question }),
+        });
+
+        const data = await response.json();
+        const reply = document.createElement('div');
+        reply.className = 'text-start mb-2';
+        reply.innerHTML = '<div class="d-inline-block bg-light text-dark p-2 rounded">' + (data.reponse || data.error || 'Erreur lors de la requête.') + '</div>';
+        c.appendChild(reply);
+    } catch (error) {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'text-start mb-2';
+        errorMessage.innerHTML = '<div class="d-inline-block bg-light text-danger p-2 rounded">Erreur de communication avec le serveur.</div>';
+        c.appendChild(errorMessage);
+    } finally {
+        document.getElementById('chat-loading')?.remove();
+        c.scrollTop = c.scrollHeight;
+    }
 });
 </script>
 </body>
