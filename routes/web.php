@@ -51,6 +51,9 @@ Route::get('/template5', function () {
 //Accueil
 Route::get('/', [WelcomeController::class, 'index']);
 
+// Temporary public route for chatbot testing
+Route::get('/chatbot-test', [ChatbotController::class, 'index'])->name('chatbot.test');
+
 // Routes d'authentification
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
