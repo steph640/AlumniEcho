@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatbotFaq;
 use App\Models\MessageChatbot;
+use App\Services\GeminiChatService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 
 class ChatbotController extends Controller
@@ -27,7 +27,7 @@ class ChatbotController extends Controller
     /**
      * Process user question and find matching answer
      */
-    public function ask(Request $request)
+    public function ask(Request $request, GeminiChatService $gemini)
     {
         try {
             $validated = $request->validate([
@@ -35,25 +35,35 @@ class ChatbotController extends Controller
             ]);
 
             $question = $validated['question'];
-            
+
             // Search for matching FAQ
             $faq = $this->searchFaq($question);
-            
-            // If no exact match found, try fuzzy search
-            if (!$faq) {
+
+            if ($faq) {
+                $response = $faq->reponse_faq;
+                $faqFound = true;
+            } else {
                 $faq = $this->fuzzySearchFaq($question);
+                if ($faq) {
+                    $response = $faq->reponse_faq;
+                    $faqFound = true;
+                } else {
+                    $faqFound = false;
+                    if (config('services.gemini.enabled')) {
+                        $response = $gemini->generateResponse($question);
+                    } else {
+                        $response = $this->getDefaultResponse();
+                    }
+                }
             }
-            
-            // Default response if no match
-            $response = $faq ? $faq->reponse_faq : $this->getDefaultResponse();
-            
+
             // Save message to history if user is authenticated
             $messageData = [
                 'code_message' => 'MSG' . strtoupper(substr(uniqid(), -12)),
                 'question_chatbot' => $question,
                 'reponse_chatbot' => $response,
             ];
-            
+
             if (Auth::check()) {
                 $messageData['code_user'] = Auth::user()->code_user;
                 MessageChatbot::create($messageData);
@@ -62,7 +72,7 @@ class ChatbotController extends Controller
             return response()->json([
                 'reponse' => $response,
                 'code_message' => $messageData['code_message'],
-                'faq_found' => !!$faq,
+                'faq_found' => $faqFound,
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -75,20 +85,20 @@ class ChatbotController extends Controller
     private function searchFaq($question)
     {
         $keywords = preg_split('/\s+/', strtolower($question));
-        
+
         // Try to find FAQ with matching keywords
         $faqs = ChatbotFaq::all();
-        
+
         foreach ($faqs as $faq) {
             $faqKeywords = preg_split('/\s+/', strtolower($faq->question_faq));
             $matchCount = count(array_intersect($keywords, $faqKeywords));
-            
+
             // If at least 50% of keywords match
             if ($matchCount >= count($keywords) * 0.5) {
                 return $faq;
             }
         }
-        
+
         return null;
     }
 
@@ -100,20 +110,20 @@ class ChatbotController extends Controller
         $faqs = ChatbotFaq::all();
         $bestMatch = null;
         $bestScore = 0.6; // 60% similarity threshold
-        
+
         foreach ($faqs as $faq) {
             // Calculate similarity
             $similarity = $this->calculateSimilarity(
                 strtolower($question),
                 strtolower($faq->question_faq)
             );
-            
+
             if ($similarity > $bestScore) {
                 $bestScore = $similarity;
                 $bestMatch = $faq;
             }
         }
-        
+
         return $bestMatch;
     }
 
@@ -124,7 +134,7 @@ class ChatbotController extends Controller
     {
         $len = max(strlen($str1), strlen($str2));
         if ($len == 0) return 1.0;
-        
+
         $distance = levenshtein($str1, $str2);
         return 1 - ($distance / $len);
     }
@@ -140,7 +150,7 @@ class ChatbotController extends Controller
             'Je n\'ai pas trouvé d\'information sur ce sujet. Consultez nos FAQs ou contactez l\'équipe d\'AlumniEcho.',
             'Votre question dépasse mon champ de connaissance. N\'hésitez pas à nous contacter directement.',
         ];
-        
+
         return $responses[array_rand($responses)];
     }
 
