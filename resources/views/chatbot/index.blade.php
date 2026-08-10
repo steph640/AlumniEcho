@@ -35,6 +35,7 @@
     .typing span:nth-child(3) { animation-delay: .4s; }
     @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
     @media(max-width:768px){ .chat-wrapper{grid-template-columns:1fr; height:auto;} .chat-box{height:60vh;} .faq-box{height:300px;} }
+.bot.error .bubble { background: #fff5f6; border-color: #f8d7da; color: #9a1f2b; }
 </style>
 @endsection
 
@@ -85,17 +86,48 @@
 <script>
 const messagesDiv = document.getElementById('messages');
 const msgInput = document.getElementById('msgInput');
+const STORAGE_KEY = 'alumni_chat_history_v1';
+let isSendingMessage = false;
 
 function now() {
     return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function addMessage(text, type) {
+    addMessageWithSave(text, type, true);
+}
+
+function addMessageWithSave(text, type, save=true) {
     const div = document.createElement('div');
     div.className = `message ${type}`;
     div.innerHTML = `<div class="bubble">${text}</div><div class="timestamp">${now()}</div>`;
     messagesDiv.appendChild(div);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    if (save) {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY) || '[]';
+            const arr = JSON.parse(raw);
+            const last = arr[arr.length - 1];
+            if (!last || last.text !== text || last.type !== type) {
+                arr.push({ text: text, type: type, at: new Date().toISOString() });
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(-200)));
+        } catch (e) {
+            console.warn('Failed to save chat history', e);
+        }
+    }
+}
+
+function loadHistory() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        arr.forEach(m => addMessageWithSave(m.text, m.type, false));
+    } catch (e) {
+        console.warn('Failed to load chat history', e);
+    }
 }
 
 function showTyping() {
@@ -123,8 +155,12 @@ function toggleFaq(el, question, answer) {
 }
 
 async function sendMessage() {
+    if (isSendingMessage) return;
+
     const msg = msgInput.value.trim();
     if (!msg) return;
+
+    isSendingMessage = true;
     addMessage(msg, 'user');
     msgInput.value = '';
     showTyping();
@@ -141,19 +177,49 @@ async function sendMessage() {
         }
     });
 
-    setTimeout(() => {
+    if (found) {
         removeTyping();
-        if (found) {
-            addMessage(found, 'bot');
+        addMessage(found, 'bot');
+        isSendingMessage = false;
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/chatbot/ask', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ question: msg }),
+        });
+
+        const data = await response.json();
+        removeTyping();
+        if (response.ok && data.reponse) {
+            addMessage(data.reponse, 'bot');
+        } else if (data.error) {
+            addMessage('Erreur: ' + (data.error.message || data.error || 'Erreur lors de la requête.'), 'bot error');
         } else {
-            addMessage("Je n'ai pas trouvé de réponse précise. Consultez la FAQ à droite ou contactez l'administration.", 'bot');
+            addMessage('Erreur lors de la requête.', 'bot error');
         }
-    }, 800);
+    } catch (error) {
+        removeTyping();
+        addMessage('Erreur de communication avec le serveur.', 'bot error');
+    } finally {
+        isSendingMessage = false;
+    }
 }
 
 msgInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
 
 // Message de bienvenue
-setTimeout(() => addMessage('Bonjour ! 👋 Je suis <strong>Echo</strong>, votre assistant AlumniEcho. Comment puis-je vous aider ?', 'bot'), 400);
+window.addEventListener('DOMContentLoaded', () => {
+    loadHistory();
+    if (!localStorage.getItem(STORAGE_KEY)) {
+        setTimeout(() => addMessage('Bonjour ! 👋 Je suis <strong>Echo</strong>, votre assistant AlumniEcho. Comment puis-je vous aider ?', 'bot'), 400);
+    }
+});
 </script>
 @endsection
